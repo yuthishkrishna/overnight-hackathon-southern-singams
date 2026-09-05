@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AirWise AI - Dashboard</title>
+  <style>
+    :root { --bg: #061120; --panel: #101d31; --panel-dark: #0b1728; --border: #21314a; --text: #f5f8ff; --muted: #9eabc0; --accent: #2675ff; }
+    * { box-sizing: border-box; }
+    button, input, select { font: inherit; }
+    body { background: radial-gradient(circle at 75% 5%, #142548 0, #061120 38%, #030a14 100%) !important; color: var(--text) !important; }
+    .feature-card { border: 1px solid var(--border); border-radius: 14px; background: linear-gradient(145deg, rgba(16,30,50,.95), rgba(8,19,34,.96)); box-shadow: 0 12px 30px rgba(0,0,0,.15); }
+    .feature-modal { max-height: 85vh; overflow-y: auto; width: min(480px, calc(100% - 32px)); border: 1px solid #293c57; border-radius: 16px; padding: 24px; background: #0b1728; color: #fff; }
+    .feature-modal::backdrop { background: rgba(0,0,0,.68); }
+    .settings-section { border: 1px solid #293c57; border-radius: 10px; padding: 14px; margin: 12px 0; background: #091426; }
+    .settings-section h3 { margin: 0 0 12px; color: #6fb3ff; font-size: 14px; }
+    .setting-row { display: grid; gap: 10px; margin-bottom: 10px; }
+    .setting-row label { display: grid; gap: 5px; color: #aab7c9; font-size: 12px; }
+    .setting-row input, .setting-row select { width: 100%; padding: 9px; border: 1px solid #2a3b54; border-radius: 7px; background: #0a1628; color: #fff; }
+    .toggle-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #1a2838; color: #c5d4e8; font-size: 12px; }
+    .toggle-row:last-child { border-bottom: 0; }
+    .settings-actions { display: flex; gap: 10px; margin-top: 15px; }
+    .settings-actions button { flex: 1; padding: 10px; border: 1px solid #31425c; border-radius: 8px; background: #122139; color: #fff; cursor: pointer; }
+    .settings-actions .save { background: #2467d7; border-color: #2467d7; }
+    .bottom-grid { display: grid; grid-template-columns: 1.55fr .85fr; gap: 20px; margin-top: 20px; }
+    .bottom-panel { padding: 20px; }
+    .section-title { display: flex; justify-content: space-between; align-items: center; font-size: 17px; }
+    #trendChart { width: 100%; height: 220px; margin-top: 12px; }
+    .history-item { display: flex; align-items: center; gap: 10px; padding: 13px 0; border-top: 1px solid #1b2b42; font-size: 13px; }
+    .history-item-button { width: 100%; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
+    .history-item-button:hover { background: rgba(255,255,255,.06); }
+    .search-control { position: relative; }
+    .location-suggestions { display: none; position: absolute; top: calc(100% + 6px); left: 0; z-index: 20; width: 300px; max-height: 240px; overflow-y: auto; padding: 4px; border: 1px solid #334155; border-radius: 8px; background: #17263a; box-shadow: 0 12px 24px rgba(0,0,0,.3); }
+    .location-suggestions.visible { display: grid; gap: 2px; }
+    .location-suggestion { width: 100%; border: 0; border-radius: 5px; padding: 9px 10px; background: transparent; color: #e8eef8; text-align: left; cursor: pointer; }
+    .location-suggestion:hover, .location-suggestion:focus { background: #263b58; outline: 0; }
+    .history-dot { width: 10px; height: 10px; border-radius: 50%; background: #f4bd35; }
+    .history-text { flex: 1; }.history-text small { display: block; color: var(--muted); margin-top: 3px; }
+    .history-score { background: #17263a; padding: 6px 8px; border-radius: 7px; font-size: 11px; }
+    .weather-extra { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,.15); font-size: 11px; color: #b9cce5; }
+    .weather-extra strong { display: block; margin-top: 4px; color: #fff; font-size: 13px; }
+    @media (max-width: 900px) { .bottom-grid { grid-template-columns: 1fr; } }
+    @media (max-width: 680px) { aside { display: none !important; } main { padding: 14px !important; } header { display: block !important; } header > div:first-child { width: 100%; } #searchInput { width: 100% !important; } .bottom-grid { grid-template-columns: 1fr; } }
+    body.light-mode { --bg: #f4f7fb; --panel: #fff; --panel-dark: #eef3f9; --border: #cfd9e6; --text: #172033; --muted: #66758a; background: linear-gradient(135deg,#f7faff,#e9f1fa) !important; color: var(--text) !important; }
+    body.light-mode .feature-card, body.light-mode .feature-modal { background: #fff; color: #172033; }
+    body.light-mode .settings-section { background: #f6f9fc; border-color: #d2dce8; }
+    body.light-mode .setting-row input, body.light-mode .setting-row select { background: #fff; color: #172033; border-color: #cbd6e3; }
+  </style>
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0b1120; color: #f3f4f6; display: flex; height: 100vh;">
+
+  <!-- Sidebar -->
+  <aside style="width: 240px; background-color: #0f172a; padding: 20px; border-right: 1px solid #1e293b; display: flex; flex-direction: column; justify-content: space-between;">
+    <div>
+      <h2 style="margin: 0 0 5px 0; color: #38bdf8; font-size: 20px;">AirWise AI</h2>
+      <p style="margin: 0 0 30px 0; font-size: 11px; color: #94a3b8;">Personal Weather & AQI Advisory</p>
+      <nav>
+        <ul style="list-style: none; padding: 0; margin: 0;">
+          <li style="margin-bottom: 12px;"><button id="dashboardNavButton" type="button" onclick="selectNav('dashboardNavButton')" style="border: 0; padding: 0; background: none; color: #38bdf8; font-weight: 600; font-size: 14px; cursor: pointer;">Dashboard</button></li>
+          <li style="margin-bottom: 12px;"><button id="profileNavButton" type="button" onclick="openProfileEditor()" style="border: 0; padding: 0; background: none; color: #94a3b8; font-size: 14px; cursor: pointer;">My Profile</button></li>
+          <li style="margin-bottom: 12px;"><button id="historyNavButton" type="button" onclick="openAlertHistory()" style="border: 0; padding: 0; background: none; color: #94a3b8; font-size: 14px; cursor: pointer;">Alerts History</button></li>
+          <li style="margin-bottom: 12px;"><button id="trendsNavButton" type="button" onclick="openTrends()" style="border: 0; padding: 0; background: none; color: #94a3b8; font-size: 14px; cursor: pointer;">Trends</button></li>
+          <li style="margin-bottom: 12px;"><button id="settingsNavButton" type="button" onclick="openSettings()" style="border: 0; padding: 0; background: none; color: #94a3b8; font-size: 14px; cursor: pointer;">Settings</button></li>
+        </ul>
+      </nav>
+    </div>
+    <div style="background-color: #1e293b; padding: 12px; border-radius: 8px; font-size: 12px; color: #94a3b8;">
+      <strong style="color: #f3f4f6;">Stay Informed, Stay Safe</strong><br>
+      AI-powered health advisories customized to your weather & AQI profile.
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main style="flex: 1; padding: 24px; overflow-y: auto;">
+    
+    <!-- Top Header & Search Bar -->
+    <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+      <div style="display: flex; gap: 10px;">
+        <div class="search-control">
+          <input type="text" id="searchInput" placeholder="Enter City or State name..." autocomplete="off" style="padding: 10px 16px; width: 300px; border-radius: 8px; border: 1px solid #334155; background-color: #1e293b; color: #fff; font-size: 14px;">
+          <div id="locationSuggestions" class="location-suggestions" role="listbox"></div>
+        </div>
+        <button onclick="searchLocation()" style="padding: 10px 20px; border-radius: 8px; border: none; background-color: #0284c7; color: white; font-weight: 600; cursor: pointer;">Search</button>
+      </div>
+      <div class="dateTime" style="font-size: 13px; color: #94a3b8;"></div>
+    </header>
+
+    <!-- Dashboard Grid -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+      
+      <!-- Current Weather Card -->
+      <div style="background-color: #0369a1; padding: 20px; border-radius: 12px; position: relative;">
+        <div style="display: flex; justify-content: space-between; font-size: 12px; opacity: 0.9;">
+          <span>Current Weather</span>
+          <span style="background: rgba(255,255,255,0.2); padding: 2px 6px; border-radius: 4px;">LIVE</span>
+        </div>
+        <div id="weatherTemp" style="font-size: 48px; font-weight: bold; margin: 15px 0 5px 0;">--°C</div>
+        <div id="weatherLocation" style="font-size: 18px; font-weight: 600;">Search a City</div>
+        <div id="weatherDescription" style="font-size: 15px; margin-top: 4px;">Live conditions</div>
+        <div id="weatherFeels" style="font-size: 13px; opacity: 0.8; margin-bottom: 15px;">Feels like --°C</div>
+        <div style="display: flex; justify-content: space-between; font-size: 12px; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 10px;">
+          <div>Humidity: <strong id="weatherHumidity">--%</strong></div>
+          <div>Wind: <strong id="weatherWind">-- km/h</strong></div>
+        </div>
+        <div class="weather-extra"><div>Visibility<strong id="weatherVisibility">--</strong></div><div>Updated<strong id="weatherUpdated">LIVE</strong></div><div>Unit<strong id="weatherUnit">Celsius</strong></div></div>
+      </div>
+
+      <!-- Current AQI Card -->
+      <div id="aqiCard" style="background-color: #065f46; padding: 20px; border-radius: 12px; transition: background-color 0.2s ease;">
+        <div style="display: flex; justify-content: space-between; font-size: 12px; opacity: 0.9;">
+          <span>Current AQI</span>
+          <span id="aqiStandardLabel" style="background: rgba(255,255,255,0.2); padding: 2px 6px; border-radius: 4px;">US AQI</span>
+        </div>
+        <div id="aqiValue" style="font-size: 48px; font-weight: bold; margin: 15px 0 5px 0;">--</div>
+        <div id="aqiStatus" style="font-size: 16px; font-weight: 600; color: #a7f3d0;">--</div>
+        <div style="display: flex; gap: 15px; font-size: 12px; margin-top: 25px; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 10px;">
+          <div>PM2.5: <strong id="pm25Val">-- µg/m³</strong></div>
+          <div>PM10: <strong id="pm10Val">-- µg/m³</strong></div>
+        </div>
+      </div>
+
+      <!-- Profile Summary Card -->
+      <div style="background-color: #1e293b; padding: 20px; border-radius: 12px; border: 1px solid #334155;">
+        <div style="display: flex; justify-content: space-between; font-size: 12px; color: #94a3b8;">
+          <span>My Profile</span>
+          <button type="button" onclick="openProfileEditor()" style="border: 0; padding: 0; background: none; color: #38bdf8; cursor: pointer; font: inherit;">Edit</button>
+        </div>
+        <div style="margin-top: 15px; font-size: 13px; color: #cbd5e1; display: grid; gap: 8px;">
+          <div>Age Group: <strong id="profileAge" style="color: #fff; display: block;">18-25 Years</strong></div>
+          <div>Health Condition: <strong id="profileCondition" style="color: #fff; display: block;">Asthma</strong></div>
+          <div>Occupation: <strong id="profileOccupation" style="color: #fff; display: block;">Outdoor Worker</strong></div>
+          <div>Activity Level: <strong id="profileActivity" style="color: #fff; display: block;">High</strong></div>
+        </div>
+      </div>
+    </div>
+
+    <dialog id="profileDialog" style="width: min(420px, calc(100% - 48px)); border: 1px solid #475569; border-radius: 12px; padding: 24px; background: #1e293b; color: #f8fafc;">
+      <form id="profileForm" onsubmit="saveProfile(event)" style="display: grid; gap: 14px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <h2 style="margin: 0; font-size: 20px;">Edit Profile</h2>
+          <button type="button" onclick="closeProfileEditor()" aria-label="Close" style="border: 0; background: none; color: #cbd5e1; font-size: 24px; cursor: pointer;">&times;</button>
+        </div>
+        <label>Age Group
+          <select id="editAgeGroup" name="ageGroup" required style="display: block; width: 100%; box-sizing: border-box; margin-top: 6px; padding: 9px; border: 1px solid #475569; border-radius: 6px; background: #0f172a; color: #f8fafc;">
+            <option>Under 18</option><option>18-25 Years</option><option>26-40 Years</option><option>41-60 Years</option><option>60+ Years</option>
+          </select>
+        </label>
+        <label>Health Condition
+          <select id="editHealthCondition" name="healthCondition" required onchange="showHealthDetails()" style="display: block; width: 100%; box-sizing: border-box; margin-top: 6px; padding: 9px; border: 1px solid #475569; border-radius: 6px; background: #0f172a; color: #f8fafc;">
+            <option value="Asthma">Asthma</option><option value="Heart Problems">Heart Problems</option><option value="Allergies">Allergies</option><option value="No issues">No issues</option>
+          </select>
+          <small id="healthConditionDetails" style="display: block; margin-top: 6px; color: #94a3b8;">Avoid smoke and keep prescribed inhalers available.</small>
+        </label>
+        <label>Occupation
+          <select id="editOccupation" name="occupation" required onchange="showOccupationDetails()" style="display: block; width: 100%; box-sizing: border-box; margin-top: 6px; padding: 9px; border: 1px solid #475569; border-radius: 6px; background: #0f172a; color: #f8fafc;">
+            <option value="Outdoor Worker">Outdoor Worker</option><option value="Indoor Worker">Indoor Worker</option><option value="Student">Student</option><option value="Athlete">Athlete</option><option value="Delivery Worker">Delivery Worker</option>
+          </select>
+          <small id="occupationDetails" style="display: block; margin-top: 6px; color: #94a3b8;">Limit prolonged outdoor exertion when air quality is poor.</small>
+        </label>
+        <label>Activity Level
+          <select id="editActivityLevel" name="activityLevel" required style="display: block; width: 100%; box-sizing: border-box; margin-top: 6px; padding: 9px; border: 1px solid #475569; border-radius: 6px; background: #0f172a; color: #f8fafc;">
+            <option>Low</option><option>Moderate</option><option>High</option>
+          </select>
+        </label>
+        <p id="profileFormStatus" style="min-height: 18px; margin: 0; color: #f87171;"></p>
+        <div style="display: flex; justify-content: flex-end; gap: 10px;">
+          <button type="button" onclick="closeProfileEditor()" style="padding: 9px 14px; border: 1px solid #475569; border-radius: 6px; background: transparent; color: #cbd5e1; cursor: pointer;">Cancel</button>
+          <button type="submit" style="padding: 9px 14px; border: 0; border-radius: 6px; background: #0284c7; color: white; font-weight: 600; cursor: pointer;">Save Profile</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="settingsDialog" class="feature-modal">
+      <form onsubmit="saveSettings(event)">
+        <div style="display: flex; justify-content: space-between; align-items: center;"><h2 style="margin: 0;">Settings</h2><button type="button" onclick="closeSettings()" aria-label="Close" style="border: 0; background: none; color: #cbd5e1; font-size: 24px; cursor: pointer;">&times;</button></div>
+        <div class="settings-section"><h3>AQI & Pollution Alerts</h3><div class="toggle-row"><span>Enable AQI Alerts</span><input id="setAqiAlerts" type="checkbox" checked></div><div class="setting-row"><label>AQI Alert Threshold<input id="setAqiThreshold" type="range" min="0" max="300" step="10" value="100" oninput="updateAqiThresholdLabel(this.value)"><span id="setAqiThresholdValue">100</span></label><small style="color:#94a3b8;">An alert is shown when the current AQI reaches or exceeds this value.</small></div><div class="toggle-row"><span>PM2.5 Alerts</span><input id="setPm25Alerts" type="checkbox" checked></div><div class="toggle-row"><span>PM10 Alerts</span><input id="setPm10Alerts" type="checkbox" checked></div><div class="toggle-row"><span>Daily Summary</span><input id="setDailySummary" type="checkbox" checked></div></div>
+        <div class="settings-section"><h3>Weather Preferences</h3><div class="setting-row"><label>Temperature Unit<select id="setTempUnit"><option value="celsius">Celsius (°C)</option><option value="fahrenheit">Fahrenheit (°F)</option></select></label><label>Wind Speed Unit<select id="setWindUnit"><option value="kmh">km/h</option><option value="mph">mph</option><option value="ms">m/s</option></select></label><label>AQI Standard<select id="setAqiStandard"><option value="us">US AQI</option><option value="in">India AQI</option></select></label></div></div>
+        <div class="settings-section"><h3>Notifications</h3><div class="toggle-row"><span>Push Notifications</span><input id="setPushNotifications" type="checkbox" checked></div><div class="toggle-row"><span>Health Advisory</span><input id="setHealthNotifications" type="checkbox" checked></div><div class="toggle-row"><span>Location-based Alerts</span><input id="setLocationAlerts" type="checkbox" checked></div></div>
+        <div class="settings-section"><h3>Notifications</h3><div class="setting-row"><label>Quiet Hours Start<input id="setQuietStart" type="time" value="22:00"></label><label>Quiet Hours End<input id="setQuietEnd" type="time" value="07:00"></label></div></div>
+        <div class="settings-section"><h3>Dashboard</h3><div class="setting-row"><label>Theme Mode<strong id="setThemeMode">Dark Mode</strong></label><label>Theme Color<select id="setThemeColor"><option value="blue">Blue</option><option value="green">Green</option><option value="orange">Orange</option><option value="purple">Purple</option></select></label></div><div class="toggle-row"><span>Show PM2.5</span><input id="setShowPm25" type="checkbox" checked></div><div class="toggle-row"><span>Show PM10</span><input id="setShowPm10" type="checkbox" checked></div></div>
+        <div class="settings-section"><h3>Location & Privacy</h3><div class="setting-row"><label>City<input id="setCity" type="text" placeholder="Enter your city"></label></div><div class="toggle-row"><span>Use profile for personalized advice</span><input id="setUseProfile" type="checkbox" checked></div></div>
+        <div class="settings-section"><h3>Data & Accessibility</h3><div class="setting-row"><label>Refresh Interval<select id="setRefreshInterval"><option value="5">5 minutes</option><option value="15" selected>15 minutes</option><option value="30">30 minutes</option><option value="60">1 hour</option></select></label><label>Language<strong id="setLanguage">English</strong></label></div><div class="toggle-row"><span>Low Data Mode</span><input id="setLowData" type="checkbox"></div><div class="toggle-row"><span>High Contrast</span><input id="setHighContrast" type="checkbox"></div></div>
+        <div class="settings-actions"><button type="button" onclick="resetSettings()">Reset</button><button class="save" type="submit">Save Settings</button></div>
+      </form>
+    </dialog>
+
+    <dialog id="alertHistoryDialog" class="feature-modal">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px;">
+        <h2 style="margin: 0;">Alert History</h2>
+        <button type="button" onclick="closeAlertHistory()" aria-label="Close" style="border: 0; background: none; color: #cbd5e1; font-size: 24px; cursor: pointer;">&times;</button>
+      </div>
+      <div id="alertHistoryDialogList"></div>
+      <div class="settings-actions">
+        <button type="button" onclick="clearHistory()">Clear History</button>
+        <button type="button" class="save" onclick="closeAlertHistory()">Close</button>
+      </div>
+    </dialog>
+
+    <dialog id="alertDetailsDialog" class="feature-modal">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px;">
+        <h2 style="margin: 0;">Alert Details</h2>
+        <button type="button" onclick="closeAlertDetails()" aria-label="Close" style="border: 0; background: none; color: #cbd5e1; font-size: 24px; cursor: pointer;">&times;</button>
+      </div>
+      <div class="settings-section">
+        <div class="setting-row"><label>Date and time<strong id="alertDetailDate"></strong></label></div>
+        <div class="setting-row"><label>Location<strong id="alertDetailLocation"></strong></label></div>
+        <div class="setting-row"><label>Temperature<strong id="alertDetailTemperature"></strong></label></div>
+        <div class="setting-row"><label>Alert<strong id="alertDetailLabel"></strong></label></div>
+      </div>
+      <div class="settings-actions"><button type="button" class="save" onclick="closeAlertDetails()">Close</button></div>
+    </dialog>
+
+    <dialog id="trendsDialog" class="feature-modal">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+        <h2 style="margin: 0;">7-Day AQI Trend</h2>
+        <button type="button" onclick="closeTrends()" aria-label="Close" style="border: 0; background: none; color: #cbd5e1; font-size: 24px; cursor: pointer;">&times;</button>
+      </div>
+      <p style="margin: 0 0 8px; color: #9eabc0; font-size: 13px;">Live and recent AQI readings</p>
+      <canvas id="trendDialogChart" style="width: 100%; height: 260px;"></canvas>
+      <div class="settings-actions"><button type="button" class="save" onclick="closeTrends()">Close</button></div>
+    </dialog>
+
+    <!-- AI Health Advisory Section -->
+    <section style="background-color: #1e1b4b; border: 1px solid #4338ca; padding: 24px; border-radius: 12px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+      <div style="display: flex; gap: 10px; align-items:center;">
+        <span style="font-size: 11px; background-color: #312e81; color: #c7d2fe; padding: 4px 8px; border-radius: 4px;">Personalized for You</span>
+      </div>
+      <p id="aiSummary" style="font-size: 14px; line-height: 1.6; color: #e0e7ff; margin-bottom: 20px;">
+      </p>
+      <ul id="aiBullets" style="padding-left: 20px; font-size: 13px; color: #c7d2fe; line-height: 1.8;">
+        <li>Recommendations will appear here once location search completes.</li>
+      </ul>
+    </section>
+
+    <div class="bottom-grid">
+      <section id="trendPanel" class="feature-card bottom-panel">
+        <div class="section-title"><span>7-Day AQI Trend</span><small style="color: #9eabc0;">Live + recent readings</small></div>
+        <canvas id="trendChart"></canvas>
+      </section>
+      <section id="historyPanel" class="feature-card bottom-panel">
+        <div class="section-title"><span>Alert History</span><button type="button" onclick="clearHistory()" style="background: transparent; color: #cbd6e6; border: 1px solid #29405b; border-radius: 16px; padding: 6px 10px; cursor: pointer;">Clear</button></div>
+        <div id="historyList" style="margin-top: 12px;"></div>
+      </section>
+    </div>
+  </main>
+
+  <!-- Complete Integration Script -->
+  <script>
+    const DEFAULT_ORIGIN = 'http://localhost:5000';
+    let API_ORIGIN = window.location.origin;
+    if (!API_ORIGIN || API_ORIGIN === 'null' || window.location.protocol === 'file:') {
+      API_ORIGIN = DEFAULT_ORIGIN;
+    }
+
+    let trendData = [60, 72, 55, 88, 64, 78, 46];
+    let alertHistory = [];
+    let latestEnvironment = null;
+    let suggestionTimer;
+    let suggestionController;
+    const defaultSettings = { tempUnit: 'celsius', windUnit: 'kmh', theme: 'dark', showPm25: true, showPm10: true, aqiStandard: 'us', aqiAlerts: true, aqiThreshold: 100, pm25Alerts: true, pm10Alerts: true, dailySummary: true };
+    let settings = { ...defaultSettings, ...JSON.parse(localStorage.getItem('airwiseSettings') || '{}') };
+    if (settings.aqiStandard === 'eu') settings.aqiStandard = 'us';
+    settings.theme = 'dark';
+
+    function weatherText(code) {
+      if (code === 0) return ['Clear', '☀️'];
+      if (code <= 3) return ['Partly cloudy', '🌤️'];
+      if (code <= 48) return ['Cloudy / foggy', '🌥️'];
+      if (code <= 67) return ['Rain', '🌧️'];
+      if (code <= 77) return ['Snow', '❄️'];
+      if (code <= 82) return ['Rain showers', '🌦️'];
+      return ['Thunderstorm', '⛈️'];
+    }
+
+    function aqiLabel(aqi) {
+      if (aqi <= 50) return ['Good', '#22c58b'];
+      if (aqi <= 100) return ['Moderate', '#f4bd35'];
+      if (aqi <= 150) return ['Unhealthy for Sensitive Groups', '#f4bd35'];
+      if (aqi <= 200) return ['Unhealthy', '#ff6554'];
+      return ['Very Unhealthy', '#ff6554'];
+    }
+
+    function convertTemperature(value) {
+      return settings.tempUnit === 'fahrenheit' ? Math.round(value * 9 / 5 + 32) : Math.round(value * 10) / 10;
+    }
+
+    function convertWind(value) {
+      if (settings.windUnit === 'mph') return `${Math.round(value * 0.621371 * 10) / 10} mph`;
+      if (settings.windUnit === 'ms') return `${Math.round(value / 3.6 * 10) / 10} m/s`;
+      return `${Math.round(value * 10) / 10} km/h`;
+    }
+
+    function getAqiStandardName() {
+      return settings.aqiStandard === 'in' ? 'India AQI' : settings.aqiStandard === 'eu' ? 'EU CAQI' : 'US AQI';
+    }
+
+    function indiaSubIndex(value, breakpoints) {
+      if (!Number.isFinite(value)) return null;
+      const range = breakpoints.find(item => value >= item[0] && value <= item[1]);
+      if (!range) return value > 500 ? 500 : 0;
+      return Math.round(((range[3] - range[2]) / (range[1] - range[0])) * (value - range[0]) + range[2]);
+    }
+
+    function indiaAqiFromPollutants(environment) {
+      const pm25Index = indiaSubIndex(Number(environment.pm25), [[0, 30, 0, 50], [30.1, 60, 51, 100], [60.1, 90, 101, 200], [90.1, 120, 201, 300], [120.1, 250, 301, 400], [250.1, 500, 401, 500]]);
+      const pm10Index = indiaSubIndex(Number(environment.pm10), [[0, 50, 0, 50], [50.1, 100, 51, 100], [100.1, 250, 101, 200], [250.1, 350, 201, 300], [350.1, 430, 301, 400], [430.1, 500, 401, 500]]);
+      const indices = [pm25Index, pm10Index].filter(Number.isFinite);
+      return indices.length ? Math.max(...indices) : null;
+    }
+
+    function euCaqiFromPm25(pm25) {
+      const value = Number(pm25);
+      if (!Number.isFinite(value)) return null;
+      if (value <= 15) return Math.round(value / 15 * 25);
+      if (value <= 30) return Math.round(25 + (value - 15) / 15 * 25);
+      if (value <= 55) return Math.round(50 + (value - 30) / 25 * 25);
+      return Math.min(100, Math.round(75 + (value - 55) / 55 * 25));
+    }
+
+    function getDisplayedAqi(environment) {
+      if (settings.aqiStandard === 'in') return indiaAqiFromPollutants(environment) ?? Number(environment.aqi);
+      if (settings.aqiStandard === 'eu') return euCaqiFromPm25(environment.pm25) ?? Number(environment.aqi);
+      return Number(environment.aqi);
+    }
+
+    function getDisplayedAqiStatus(value) {
+      if (settings.aqiStandard === 'eu') return value <= 25 ? 'Very Low' : value <= 50 ? 'Low' : value <= 75 ? 'Medium' : 'High';
+      if (value <= 50) return 'Good';
+      if (value <= 100) return 'Moderate';
+      if (value <= 150) return 'Unhealthy for Sensitive Groups';
+      if (value <= 200) return 'Unhealthy';
+      return 'Very Unhealthy';
+    }
+
+    function updateWeatherCard(environment) {
+      latestEnvironment = environment;
+      const description = weatherText(environment.weatherCode ?? 0);
+      document.getElementById('weatherTemp').innerText = `${convertTemperature(environment.temperature)}°${settings.tempUnit === 'fahrenheit' ? 'F' : 'C'}`;
+      document.getElementById('weatherFeels').innerText = `Feels like ${convertTemperature(environment.feelsLike)}°${settings.tempUnit === 'fahrenheit' ? 'F' : 'C'}`;
+      document.getElementById('weatherWind').innerText = convertWind(environment.windSpeed);
+      document.getElementById('weatherDescription').innerText = `${description[1]} ${description[0]}`;
+      document.getElementById('weatherUpdated').innerText = 'UPDATED NOW';
+      document.getElementById('weatherUnit').innerText = settings.tempUnit === 'fahrenheit' ? 'Fahrenheit' : 'Celsius';
+    }
+
+    function renderHistory() {
+      const content = alertHistory.slice(0, 5).map((item, index) => `<button type="button" class="history-item history-item-button" onclick="openAlertDetails(${index})"><span class="history-dot" style="background:${aqiLabel(item.aqi)[1]}"></span><span class="history-text"><strong>${item.label}</strong><small>${getAlertDateText(item)} · ${item.location || 'Location unavailable'} · ${getAlertTemperatureText(item)}</small></span><span class="history-score">AQI ${item.aqi}</span></button>`).join('') || '<p style="color:#9eabc0;font-size:13px;">No alerts yet.</p>';
+      document.getElementById('historyList').innerHTML = content;
+      document.getElementById('alertHistoryDialogList').innerHTML = content;
+    }
+
+    function getAlertDateText(item) {
+      const recordedAt = item.recordedAt ? new Date(item.recordedAt) : null;
+      return recordedAt && !Number.isNaN(recordedAt.getTime()) ? recordedAt.toLocaleString() : item.date || 'Date unavailable';
+    }
+
+    function getAlertTemperatureText(item) {
+      const temperature = Number(item.temperature);
+      return Number.isFinite(temperature)
+        ? `${convertTemperature(temperature)}°${settings.tempUnit === 'fahrenheit' ? 'F' : 'C'}`
+        : 'Temperature unavailable';
+    }
+
+    function openAlertDetails(index) {
+      const item = alertHistory[index];
+      if (!item) return;
+      document.getElementById('alertDetailDate').innerText = getAlertDateText(item);
+      document.getElementById('alertDetailLocation').innerText = item.location || 'Not available';
+      document.getElementById('alertDetailTemperature').innerText = getAlertTemperatureText(item);
+      document.getElementById('alertDetailLabel').innerText = item.label || 'Not available';
+      document.getElementById('alertDetailsDialog').showModal();
+    }
+
+    function closeAlertDetails() {
+      document.getElementById('alertDetailsDialog').close();
+    }
+
+    function drawTrendChart() {
+      ['trendChart', 'trendDialogChart'].forEach(canvasId => {
+        const canvas = document.getElementById(canvasId);
+        if (!canvas || canvas.getBoundingClientRect().width === 0) return;
+        const rect = canvas.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = rect.width * dpr; canvas.height = rect.height * dpr;
+        const context = canvas.getContext('2d'); context.scale(dpr, dpr);
+        const width = rect.width, height = rect.height, pad = { left: 34, right: 12, top: 18, bottom: 28 };
+        context.clearRect(0, 0, width, height); context.strokeStyle = '#20334c'; context.fillStyle = '#8493a8'; context.font = '11px system-ui';
+        [0, 50, 100, 150, 200].forEach(value => { const y = height - pad.bottom - value / 200 * (height - pad.top - pad.bottom); context.beginPath(); context.moveTo(pad.left, y); context.lineTo(width - pad.right, y); context.stroke(); context.fillText(value, 5, y + 4); });
+        const points = trendData.map((value, index) => ({ x: pad.left + index * (width - pad.left - pad.right) / (trendData.length - 1), y: height - pad.bottom - value / 200 * (height - pad.top - pad.bottom), value }));
+        context.beginPath(); points.forEach((point, index) => index ? context.lineTo(point.x, point.y) : context.moveTo(point.x, point.y)); context.lineWidth = 3; context.strokeStyle = '#ff713f'; context.stroke();
+        points.forEach((point, index) => { context.beginPath(); context.arc(point.x, point.y, 4, 0, Math.PI * 2); context.fillStyle = index === points.length - 1 ? '#f4bd35' : '#ff713f'; context.fill(); context.fillStyle = '#e8eef8'; context.fillText(point.value, point.x - 8, point.y - 10); context.fillStyle = '#8392a8'; context.fillText(index === points.length - 1 ? 'Today' : `Day ${index + 1}`, point.x - 14, height - 8); });
+      });
+    }
+
+    function openSettings() {
+      selectNav('settingsNavButton');
+      document.getElementById('setAqiAlerts').checked = settings.aqiAlerts !== false;
+      document.getElementById('setAqiThreshold').value = settings.aqiThreshold;
+      updateAqiThresholdLabel(settings.aqiThreshold);
+      document.getElementById('setPm25Alerts').checked = settings.pm25Alerts !== false;
+      document.getElementById('setPm10Alerts').checked = settings.pm10Alerts !== false;
+      document.getElementById('setDailySummary').checked = settings.dailySummary !== false;
+      document.getElementById('setTempUnit').value = settings.tempUnit || 'celsius';
+      document.getElementById('setWindUnit').value = settings.windUnit || 'kmh';
+      document.getElementById('setAqiStandard').value = settings.aqiStandard || 'us';
+      document.getElementById('setShowPm25').checked = settings.showPm25 !== false;
+      document.getElementById('setShowPm10').checked = settings.showPm10 !== false;
+      document.getElementById('setThemeColor').value = settings.themeColor || 'blue';
+      document.getElementById('setCity').value = settings.city || '';
+      document.getElementById('setUseProfile').checked = settings.useProfile !== false;
+      document.getElementById('setRefreshInterval').value = settings.refreshInterval || '15';
+      document.getElementById('setLowData').checked = settings.lowData === true;
+      document.getElementById('setHighContrast').checked = settings.highContrast === true;
+      document.getElementById('setQuietStart').value = settings.quietStart || '22:00';
+      document.getElementById('setQuietEnd').value = settings.quietEnd || '07:00';
+      document.getElementById('settingsDialog').showModal();
+    }
+
+    function closeSettings() { document.getElementById('settingsDialog').close(); }
+
+    function updateAqiThresholdLabel(value) {
+      document.getElementById('setAqiThresholdValue').innerText = value;
+    }
+
+    function checkAqiAlert(environment) {
+      const threshold = Number(settings.aqiThreshold);
+      return settings.aqiAlerts !== false && Number.isFinite(threshold) && getDisplayedAqi(environment) >= threshold;
+    }
+
+    function updateAqiCard(environment) {
+      const isAlert = checkAqiAlert(environment);
+      const aqiCard = document.getElementById('aqiCard');
+      const aqiStatus = document.getElementById('aqiStatus');
+      const displayedAqi = getDisplayedAqi(environment);
+      aqiCard.style.backgroundColor = isAlert ? '#991b1b' : '#065f46';
+      document.getElementById('aqiStandardLabel').innerText = getAqiStandardName();
+      document.getElementById('aqiValue').innerText = displayedAqi;
+      aqiStatus.innerText = isAlert ? 'Bad' : getDisplayedAqiStatus(displayedAqi);
+      aqiStatus.style.color = isAlert ? '#fecaca' : '#a7f3d0';
+    }
+
+    function showAqiAlert(environment) {
+      updateAqiCard(environment);
+    }
+
+    function saveSettings(event) {
+      event.preventDefault();
+      settings = { ...settings, aqiStandard: document.getElementById('setAqiStandard').value, aqiAlerts: document.getElementById('setAqiAlerts').checked, aqiThreshold: Number(document.getElementById('setAqiThreshold').value), pm25Alerts: document.getElementById('setPm25Alerts').checked, pm10Alerts: document.getElementById('setPm10Alerts').checked, dailySummary: document.getElementById('setDailySummary').checked, theme: 'dark', themeColor: document.getElementById('setThemeColor').value, tempUnit: document.getElementById('setTempUnit').value, windUnit: document.getElementById('setWindUnit').value, showPm25: document.getElementById('setShowPm25').checked, showPm10: document.getElementById('setShowPm10').checked, city: document.getElementById('setCity').value.trim(), useProfile: document.getElementById('setUseProfile').checked, refreshInterval: document.getElementById('setRefreshInterval').value, language: 'en', lowData: document.getElementById('setLowData').checked, highContrast: document.getElementById('setHighContrast').checked, quietStart: document.getElementById('setQuietStart').value, quietEnd: document.getElementById('setQuietEnd').value };
+      localStorage.setItem('airwiseSettings', JSON.stringify(settings));
+      document.body.classList.toggle('light-mode', settings.theme === 'light');
+      if (latestEnvironment) updateWeatherCard(latestEnvironment);
+      document.getElementById('pm25Val').parentElement.style.display = settings.showPm25 ? '' : 'none';
+      document.getElementById('pm10Val').parentElement.style.display = settings.showPm10 ? '' : 'none';
+      closeSettings();
+      if (latestEnvironment) updateAqiCard(latestEnvironment);
+    }
+
+    function resetSettings() {
+      settings = { ...defaultSettings, themeColor: 'blue', useProfile: true, refreshInterval: '15', language: 'en', lowData: false, highContrast: false };
+      localStorage.setItem('airwiseSettings', JSON.stringify(settings));
+      document.body.classList.remove('light-mode');
+      document.getElementById('setTempUnit').value = 'celsius';
+      document.getElementById('setWindUnit').value = 'kmh';
+      document.getElementById('setAqiAlerts').checked = true;
+      document.getElementById('setAqiThreshold').value = defaultSettings.aqiThreshold;
+      updateAqiThresholdLabel(defaultSettings.aqiThreshold);
+      document.getElementById('setPm25Alerts').checked = true;
+      document.getElementById('setPm10Alerts').checked = true;
+      document.getElementById('setDailySummary').checked = true;
+      document.getElementById('setShowPm25').checked = true;
+      document.getElementById('setShowPm10').checked = true;
+      if (latestEnvironment) updateWeatherCard(latestEnvironment);
+    }
+
+    function clearHistory() {
+      alertHistory = [];
+      localStorage.removeItem('airwiseHistory');
+      renderHistory();
+    }
+
+    function openAlertHistory() {
+      selectNav('historyNavButton');
+      renderHistory();
+      document.getElementById('alertHistoryDialog').showModal();
+    }
+
+    function closeAlertHistory() {
+      document.getElementById('alertHistoryDialog').close();
+      selectNav('dashboardNavButton');
+    }
+
+    function openTrends() {
+      selectNav('trendsNavButton');
+      document.getElementById('trendsDialog').showModal();
+      drawTrendChart();
+    }
+
+    function closeTrends() {
+      document.getElementById('trendsDialog').close();
+      selectNav('dashboardNavButton');
+    }
+
+    const navigationButtons = ['dashboardNavButton', 'profileNavButton', 'historyNavButton', 'trendsNavButton', 'settingsNavButton'];
+
+    function selectNav(activeId) {
+      navigationButtons.forEach(buttonId => {
+        const button = document.getElementById(buttonId);
+        if (!button) return;
+        const active = buttonId === activeId;
+        button.style.color = active ? '#38bdf8' : '#94a3b8';
+        button.style.fontWeight = active ? '600' : '400';
+      });
+    }
+
+    function showDashboardPanel(panelId, navId) {
+      selectNav(navId);
+      document.getElementById(panelId).scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    async function checkServerHealth() {
+      try {
+        const res = await fetch(`${API_ORIGIN}/api/health`);
+        if (res.ok) {
+          return true;
+        }
+      } catch (err) {
+        // fallthrough to show disconnected state
+      }
+      return false;
+    }
+
+    function setProfile(profile) {
+      document.getElementById('profileAge').innerText = profile.ageGroup;
+      document.getElementById('profileCondition').innerText = profile.healthCondition;
+      document.getElementById('profileOccupation').innerText = profile.occupation;
+      document.getElementById('profileActivity').innerText = profile.activityLevel;
+    }
+
+    function requestLocationSuggestions(value) {
+      const query = value.trim();
+      clearTimeout(suggestionTimer);
+      if (suggestionController) suggestionController.abort();
+      const suggestionList = document.getElementById('locationSuggestions');
+      suggestionList.innerHTML = '';
+      suggestionList.classList.remove('visible');
+      if (query.length < 2) return;
+
+      suggestionTimer = setTimeout(async () => {
+        suggestionController = new AbortController();
+        try {
+          const response = await fetch(
+            `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=6&language=en&format=json`,
+            { signal: suggestionController.signal }
+          );
+          if (!response.ok) return;
+          const data = await response.json();
+          (data.results || []).forEach(result => {
+            const location = [result.name, result.admin1, result.country].filter(Boolean).join(', ');
+            const option = document.createElement('button');
+            option.type = 'button';
+            option.className = 'location-suggestion';
+            option.setAttribute('role', 'option');
+            option.innerText = location;
+            option.addEventListener('click', () => {
+              document.getElementById('searchInput').value = location;
+              suggestionList.classList.remove('visible');
+            });
+            suggestionList.appendChild(option);
+          });
+          if (suggestionList.children.length) suggestionList.classList.add('visible');
+        } catch (error) {
+          if (error.name !== 'AbortError') console.warn('Location suggestions unavailable:', error.message);
+        }
+      }, 250);
+    }
+
+    function updateDateTime() {
+      const formattedDateTime = new Intl.DateTimeFormat(undefined, {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit'
+      }).format(new Date()).replace(' at ', ' | ');
+      document.querySelectorAll('.dateTime').forEach(element => {
+        element.innerText = formattedDateTime;
+      });
+    }
+
+    const healthDetails = {
+      Asthma: 'Avoid smoke and keep prescribed inhalers available.',
+      'Heart Problems': 'Avoid strenuous activity in poor air quality and follow your care plan.',
+      Allergies: 'Limit exposure to smoke, dust, and other known triggers.',
+      'No issues': 'Monitor conditions and take precautions when pollution levels rise.'
+    };
+    const occupationDetails = {
+      'Outdoor Worker': 'Limit prolonged outdoor exertion when air quality is poor.',
+      'Indoor Worker': 'Keep indoor air clean and take breaks away from polluted entryways.',
+      Student: 'Avoid intense outdoor activities during high pollution periods.',
+      Athlete: 'Move training indoors when AQI is elevated and warm up gradually.',
+      'Delivery Worker': 'Plan routes around poor-air periods and use a well-fitting mask outdoors.'
+    };
+
+    function showHealthDetails() {
+      const condition = document.getElementById('editHealthCondition').value;
+      document.getElementById('healthConditionDetails').innerText = healthDetails[condition] || '';
+    }
+
+    function showOccupationDetails() {
+      const occupation = document.getElementById('editOccupation').value;
+      document.getElementById('occupationDetails').innerText = occupationDetails[occupation] || '';
+    }
+
+    async function openProfileEditor() {
+      const dialog = document.getElementById('profileDialog');
+      const status = document.getElementById('profileFormStatus');
+      setProfileNavActive(true);
+      status.innerText = '';
+      try {
+        const response = await fetch(`${API_ORIGIN}/api/profile`);
+        if (!response.ok) throw new Error('Could not load profile');
+        const profile = await response.json();
+        document.getElementById('editAgeGroup').value = profile.ageGroup;
+        document.getElementById('editHealthCondition').value = profile.healthCondition;
+        document.getElementById('editOccupation').value = profile.occupation;
+        document.getElementById('editActivityLevel').value = profile.activityLevel;
+        showHealthDetails();
+        showOccupationDetails();
+        dialog.showModal();
+      } catch (error) {
+        status.innerText = 'Unable to load profile. Check that the backend is running.';
+        dialog.showModal();
+      }
+    }
+
+    function closeProfileEditor() {
+      document.getElementById('profileDialog').close();
+      setProfileNavActive(false);
+    }
+
+    function setProfileNavActive(isActive) {
+      selectNav(isActive ? 'profileNavButton' : 'dashboardNavButton');
+    }
+
+    async function saveProfile(event) {
+      event.preventDefault();
+      const status = document.getElementById('profileFormStatus');
+      const profile = {
+        ageGroup: document.getElementById('editAgeGroup').value,
+        healthCondition: document.getElementById('editHealthCondition').value.trim(),
+        occupation: document.getElementById('editOccupation').value.trim(),
+        activityLevel: document.getElementById('editActivityLevel').value
+      };
+      if (profile.ageGroup === '60+ Years' && profile.occupation === 'Student') {
+        const warning = 'Warning: A student cannot be in the 60+ Years age category. Please select a different age group or occupation.';
+        status.innerText = warning;
+        alert(warning);
+        return;
+      }
+      status.innerText = 'Saving...';
+      try {
+        const response = await fetch(`${API_ORIGIN}/api/profile`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(profile)
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Could not save profile');
+        setProfile(data.profile);
+        closeProfileEditor();
+        if (document.getElementById('searchInput').value.trim()) {
+          document.getElementById('aiSummary').innerText = 'Updating your personalized advisory...';
+          await searchLocation();
+        }
+      } catch (error) {
+        status.innerText = error.message;
+      }
+    }
+
+    // Check server health on load
+    window.addEventListener('load', () => {
+      document.body.classList.toggle('light-mode', settings.theme === 'light');
+      alertHistory = JSON.parse(localStorage.getItem('airwiseHistory') || '[]');
+      renderHistory(); drawTrendChart();
+      updateDateTime();
+      setInterval(updateDateTime, 1000);
+      checkServerHealth();
+      document.getElementById('profileDialog').addEventListener('close', () => setProfileNavActive(false));
+      document.getElementById('alertHistoryDialog').addEventListener('close', () => selectNav('dashboardNavButton'));
+      document.getElementById('trendsDialog').addEventListener('close', () => selectNav('dashboardNavButton'));
+    });
+    window.addEventListener('resize', drawTrendChart);
+
+    document.getElementById('searchInput').addEventListener('input', event => {
+      requestLocationSuggestions(event.target.value);
+    });
+    document.getElementById('searchInput').addEventListener('keydown', event => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        searchLocation();
+      }
+    });
+    document.addEventListener('click', event => {
+      if (!event.target.closest('.search-control')) {
+        document.getElementById('locationSuggestions').classList.remove('visible');
+      }
+    });
+
+    async function searchLocation() {
+      const cityInput = document.getElementById('searchInput');
+      const city = cityInput.value.trim();
+
+      if (!city) {
+        alert('Please enter a city or state name.');
+        return;
+      }
+
+      // Indicate loading state
+      document.getElementById('aiSummary').innerText = 'Fetching live data and generating AI health advisory...';
+
+      // ensure backend reachable before attempting search
+      const healthy = await checkServerHealth();
+      if (!healthy) {
+        alert('Backend server is not running. Start it with "node server.js" or double-click start-server.cmd, then open http://localhost:5000.');
+        document.getElementById('aiSummary').innerText = 'Failed to connect to backend.';
+        return;
+      }
+
+      try {
+        const profileResponse = await fetch(`${API_ORIGIN}/api/profile`);
+        if (!profileResponse.ok) throw new Error('Could not load current profile');
+        const currentProfile = await profileResponse.json();
+        const response = await fetch(`${API_ORIGIN}/api/dashboard-data`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ city, profile: currentProfile })
+        });
+
+        if (!response.ok) {
+          const errText = await response.text();
+          console.error('Server returned error:', response.status, errText);
+          alert('Server error: ' + response.statusText + '\n' + errText);
+          document.getElementById('aiSummary').innerText = 'Failed to load advisory. Please try another city.';
+          return;
+        }
+
+        const data = await response.json();
+
+        // 1. Update Weather Card
+        document.getElementById('weatherTemp').innerText = `${data.environment.temperature}°C`;
+        document.getElementById('weatherLocation').innerText = data.environment.location;
+        document.getElementById('weatherHumidity').innerText = `${data.environment.humidity}%`;
+        document.getElementById('weatherVisibility').innerText = 'Live';
+        updateWeatherCard(data.environment);
+
+        // 2. Update AQI Card
+        updateAqiCard(data.environment);
+        document.getElementById('pm25Val').innerText = `${data.environment.pm25} µg/m³`;
+        document.getElementById('pm10Val').innerText = `${data.environment.pm10} µg/m³`;
+        trendData = [...trendData.slice(1), Number(data.environment.aqi) || 0];
+        if (checkAqiAlert(data.environment)) {
+          alertHistory.unshift({
+            label: data.environment.aqiStatus,
+            date: 'Just now',
+            recordedAt: new Date().toISOString(),
+            location: data.environment.location,
+            temperature: Number(data.environment.temperature),
+            aqi: Number(data.environment.aqi) || 0
+          });
+          alertHistory = alertHistory.slice(0, 5);
+          localStorage.setItem('airwiseHistory', JSON.stringify(alertHistory));
+        }
+        renderHistory();
+        drawTrendChart();
+        showAqiAlert(data.environment);
+
+        // 3. Update Profile Card
+        setProfile(data.profile);
+
+        // 4. Update AI Advisory Box
+        document.getElementById('aiSummary').innerText = data.advisory?.summary || 'No advisory returned.';
+        
+        const bulletsList = document.getElementById('aiBullets');
+        bulletsList.innerHTML = '';
+        (data.advisory?.bullets || []).forEach(item => {
+          const li = document.createElement('li');
+          li.innerText = item;
+          bulletsList.appendChild(li);
+        });
+
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        alert('Error connecting to the backend server. Check console for details.');
+        document.getElementById('aiSummary').innerText = 'Error connecting to backend.';
+      }
+    }
+  </script>
+</body>
+</html>
